@@ -50,6 +50,27 @@ public class ManagerConsoleApp {
     }
 
     private static Request buildAddGameRequest(Scanner scanner) {
+        System.out.print("Load game from JSON file? (y/n): ");
+        String loadFromJson = scanner.nextLine().trim().toLowerCase();
+
+        GameInfo gameInfo = "y".equals(loadFromJson)
+                ? buildGameFromJson(scanner)
+                : buildGameFromInput(scanner);
+
+        return Request.addGame(gameInfo);
+    }
+
+    private static GameInfo buildGameFromJson(Scanner scanner) {
+        try {
+            System.out.print("JSON file path: ");
+            String jsonPath = scanner.nextLine().trim();
+            return GameJsonLoader.loadFromPath(jsonPath);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to load game JSON: " + e.getMessage(), e);
+        }
+    }
+
+    private static GameInfo buildGameFromInput(Scanner scanner) {
         System.out.print("Game name: ");
         String gameName = scanner.nextLine().trim();
         System.out.print("Provider name: ");
@@ -69,7 +90,7 @@ public class ManagerConsoleApp {
         System.out.print("Shared secret/hash key: ");
         String hashKey = scanner.nextLine().trim();
 
-        return Request.addGame(new GameInfo(
+        return new GameInfo(
                 gameName,
                 providerName,
                 stars,
@@ -79,7 +100,7 @@ public class ManagerConsoleApp {
                 maxBet,
                 riskLevel,
                 hashKey
-        ));
+        );
     }
 
     private static Response send(String host, int port, Request request) throws Exception {
