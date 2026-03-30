@@ -7,14 +7,13 @@ import java.util.List;
 public class WorkerStorage {
 
     private HashMap<String, Game> games;
+    private HashMap<String, Double> playerBalances;
 
     public WorkerStorage() {
         games = new HashMap<>();
+        playerBalances = new HashMap<>();
     }
 
-    // =========================
-    // ADD GAME
-    // =========================
     public synchronized String addGame(Game game) {
         if (game == null) {
             return "Game is null";
@@ -34,9 +33,9 @@ public class WorkerStorage {
         return "Game added successfully";
     }
 
-    // =========================
-    // REMOVE GAME (set inactive)
-    // =========================
+    
+
+
     public synchronized String removeGame(String gameName) {
         if (gameName == null || gameName.trim().isEmpty()) {
             return "Game name is empty";
@@ -52,12 +51,13 @@ public class WorkerStorage {
         return "Game removed successfully (set inactive)";
     }
 
-    // =========================
-    // UPDATE RISK
-    // =========================
     public synchronized String updateRisk(String gameName, String newRisk) {
         if (gameName == null || gameName.trim().isEmpty()) {
             return "Game name is empty";
+        }
+
+        if (newRisk == null || newRisk.trim().isEmpty()) {
+            return "Risk level is empty";
         }
 
         Game game = games.get(gameName);
@@ -70,23 +70,43 @@ public class WorkerStorage {
         return "Risk updated successfully";
     }
 
-    // =========================
-    // GET GAME
-    // =========================
+    public synchronized String updateBetLimits(String gameName, Double newMinBet, Double newMaxBet) {
+    if (gameName == null || gameName.trim().isEmpty()) {
+        return "Game name is empty";
+    }
+
+    if (newMinBet == null || newMaxBet == null) {
+        return "Bet limits are null";
+    }
+
+    if (newMinBet <= 0 || newMaxBet <= 0) {
+        return "Bet limits must be positive";
+    }
+
+    if (newMinBet > newMaxBet) {
+        return "Min bet cannot be greater than max bet";
+    }
+
+    Game game = games.get(gameName);
+
+    if (game == null) {
+        return "Game not found";
+    }
+
+    game.setMinBet(newMinBet);
+    game.setMaxBet(newMaxBet);
+
+    return "Bet limits updated successfully";
+}
+
     public synchronized Game getGame(String gameName) {
         return games.get(gameName);
     }
 
-    // =========================
-    // GET ALL GAMES
-    // =========================
     public synchronized HashMap<String, Game> getAllGames() {
-        return games;
+        return new HashMap<>(games);
     }
 
-    // =========================
-    // SEARCH (πολύ σημαντικό)
-    // =========================
     public synchronized List<Game> getActiveGames() {
         List<Game> result = new ArrayList<>();
 
@@ -98,4 +118,73 @@ public class WorkerStorage {
 
         return result;
     }
+
+    public synchronized HashMap<String, Double> getProviderPartialTotals(String providerName) {
+        HashMap<String, Double> partialTotals = new HashMap<>();
+
+        if (providerName == null || providerName.trim().isEmpty()) {
+            return partialTotals;
+        }
+
+        for (Game game : games.values()) {
+            if (providerName.equalsIgnoreCase(game.getProviderName())) {
+                double profitLoss = game.getTotalBetAmount() - game.getTotalPayoutAmount();
+                partialTotals.put(game.getGameName(), profitLoss);
+            }
+        }
+
+        return partialTotals;
+    
+    }
+
+    public synchronized String addBalance(String playerId, Double amount) {
+    if (playerId == null || playerId.trim().isEmpty()) {
+        return "Player ID is empty";
+    }
+
+    if (amount == null) {
+        return "Amount is null";
+    }
+
+    if (amount <= 0) {
+        return "Amount must be positive";
+    }
+
+    double currentBalance = playerBalances.getOrDefault(playerId, 0.0);
+    playerBalances.put(playerId, currentBalance + amount);
+
+    return "Balance added successfully";
+}
+
+public synchronized Double getPlayerBalance(String playerId) {
+    if (playerId == null || playerId.trim().isEmpty()) {
+        return 0.0;
+    }
+
+    return playerBalances.getOrDefault(playerId, 0.0);
+}
+
+public synchronized boolean deductBalance(String playerId, Double amount) {
+    if (playerId == null || playerId.trim().isEmpty() || amount == null || amount <= 0) {
+        return false;
+    }
+
+    double currentBalance = playerBalances.getOrDefault(playerId, 0.0);
+
+    if (currentBalance < amount) {
+        return false;
+    }
+
+    playerBalances.put(playerId, currentBalance - amount);
+    return true;
+}
+
+public synchronized void addWinnings(String playerId, Double payout) {
+    if (playerId == null || playerId.trim().isEmpty() || payout == null || payout < 0) {
+        return;
+    }
+
+    double currentBalance = playerBalances.getOrDefault(playerId, 0.0);
+    playerBalances.put(playerId, currentBalance + payout);
+}
 }

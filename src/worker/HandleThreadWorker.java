@@ -1,19 +1,29 @@
 package worker;
 
+import common.GameInfo;
+import common.Request;
+import common.RequestType;
+import common.Response;
+import rng.RandomResult;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-
-import common.Request;
-import common.RequestType;
-import common.Response;
-import common.GameInfo;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class HandleThreadWorker extends Thread {
 
-    private Socket client;
-    private WorkerStorage storage;
+    private final Socket client;
+    private final WorkerStorage storage;
+
+    // RNG server config
+    private static final String RNG_HOST = "localhost";
+    private static final int RNG_PORT = 9090;
 
     public HandleThreadWorker(Socket client, WorkerStorage storage) {
         this.client = client;
@@ -27,6 +37,8 @@ public class HandleThreadWorker extends Thread {
 
         try {
             out = new ObjectOutputStream(client.getOutputStream());
+            out.flush();
+
             in = new ObjectInputStream(client.getInputStream());
 
             Request request = (Request) in.readObject();
@@ -51,7 +63,9 @@ public class HandleThreadWorker extends Thread {
             }
 
             try {
-                if (client != null && !client.isClosed()) client.close();
+                if (client != null && !client.isClosed()) {
+                    client.close();
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -64,7 +78,6 @@ public class HandleThreadWorker extends Thread {
         }
 
         RequestType type = request.getType();
-        GameInfo gameInfo = request.getGameInfo();
 
         if (type == null) {
             return new Response(false, "Request type is null");
@@ -72,82 +85,163 @@ public class HandleThreadWorker extends Thread {
 
         switch (type) {
             case ADD_GAME:
-                return handleAddGame(gameInfo);
+                return handleAddGame(request.getGameInfo());
 
             case REMOVE_GAME:
-                return handleRemoveGame(gameInfo);
+                return handleRemoveGame(request.getGameName());
 
-            case UPDATE_RISK:
-                return handleUpdateRisk(gameInfo);
+            case UPDATE_GAME_RISK:
+                return handleUpdateRisk(request.getGameName(), request.getRiskLevel());
+
+            case UPDATE_GAME_BET_LIMITS:
+                return handleUpdateBetLimits(request.getGameName(), request.getMinBet(), request.getMaxBet());
+
             case SEARCH_GAMES:
-                return handleSearchGames();
-            case PLAY_GAME:
-                return handlePlayGame(gameInfo);
+                return handleSearchGames(request);
 
+            case PLACE_BET:
+    return handlePlaceBet(request.getPlayerId(), request.getGameName(), request.getBetAmount());
+
+            case HEALTH_CHECK:
+                return new Response(true, "Worker is alive");
+
+            // Αυτά θα τα υλοποιήσεις αργότερα
+            case ADD_BALANCE:
+    return handleAddBalance(request.getPlayerId(), request.getBetAmount());
+
+case GET_PROVIDER_STATS:
+    return handleGetProviderStats(request.getProviderName());
+            case GET_PLAYER_STATS:
+            case MAP_PROVIDER_STATS:
+            case MAP_PLAYER_STATS:
+                return new Response(false, "Request type not implemented yet: " + type);
             default:
                 return new Response(false, "Unsupported request type: " + type);
         }
     }
 
     private Response handleAddGame(GameInfo gameInfo) {
-    if (gameInfo == null) {
-        return new Response(false, "GameInfo is null");
+        if (gameInfo == null) {
+            return new Response(false, "GameInfo is null");
+        }
+
+        if (gameInfo.getGameName() == null || gameInfo.getGameName().trim().isEmpty()) {
+            return new Response(false, "Game name is empty");
+        }
+
+        Game game = new Game(gameInfo);
+        String result = storage.addGame(game);
+
+        if ("Game added successfully".equals(result)) {
+            return new Response(true, result);
+        }
+
+        return new Response(false, result);
     }
 
-    Game game = new Game(gameInfo);
-    String result = storage.addGame(game);
+    private Response handleRemoveGame(String gameName) {
+        if (gameName == null || gameName.trim().isEmpty()) {
+            return new Response(false, "Game name is empty");
+        }
 
-    if (result.equals("Game added successfully")) {
-        return new Response(true, result, gameInfo);
+        String result = storage.removeGame(gameName);
+
+        if ("Game removed successfully (set inactive)".equals(result)) {
+            return new Response(true, result);
+        }
+
+        return new Response(false, result);
+    }
+
+    private Response handleUpdateRisk(String gameName, String newRisk) {
+        if (gameName == null || gameName.trim().isEmpty()) {
+            return new Response(false, "Game name is empty");
+        }
+
+        if (newRisk == null || newRisk.trim().isEmpty()) {
+            return new Response(false, "Risk level is empty");
+        }
+
+        String result = storage.updateRisk(gameName, newRisk);
+
+        if ("Risk updated successfully".equals(result)) {
+            return new Response(true, result);
+        }
+
+        return new Response(false, result);
+    }
+
+   private Response handleUpdateBetLimits(String gameName, Double minBet, Double maxBet) {
+    if (gameName == null || gameName.trim().isEmpty()) {
+        return new Response(false, "Game name is empty");
+    }
+
+    String result = storage.updateBetLimits(gameName, minBet, maxBet);
+
+    if ("Bet limits updated successfully".equals(result)) {
+        return new Response(true, result);
     }
 
     return new Response(false, result);
 }
-    private Response handleRemoveGame(GameInfo gameInfo) {
-        if (gameInfo == null) {
-            return new Response(false, "GameInfo is null");
-        }
 
-        String gameName = gameInfo.getGameName();
-        String result = storage.removeGame(gameName);
-
-        if (result.equals("Game removed successfully (set inactive)")) {
-            return new Response(true, result);
-        }
-
-        return new Response(false, result);
+    private Response handleGetProviderStats(String providerName) {
+    if (providerName == null || providerName.trim().isEmpty()) {
+        return new Response(false, "Provider name is empty");
     }
 
-    private Response handleUpdateRisk(GameInfo gameInfo) {
-        if (gameInfo == null) {
-            return new Response(false, "GameInfo is null");
-        }
-
-        String gameName = gameInfo.getGameName();
-        String newRisk = gameInfo.getRiskLevel();
-
-        String result = storage.updateRisk(gameName, newRisk);
-
-        if (result.equals("Risk updated successfully")) {
-            return new Response(true, result);
-        }
-
-        return new Response(false, result);
-    }
-    private Response handleSearchGames() {
-    return new Response(true, "Search results", storage.getActiveGames());
+    return new Response(
+            true,
+            "Provider partial totals ready",
+            storage.getProviderPartialTotals(providerName)
+    );
 }
 
-private Response handlePlayGame(GameInfo gameInfo) {
-    if (gameInfo == null) {
-        return new Response(false, "GameInfo is null");
+    private Response handleSearchGames(Request request) {
+        List<GameInfo> results = new ArrayList<>();
+
+        for (Game game : storage.getAllGames().values()) {
+            if (!game.isActive()) {
+                continue;
+            }
+
+            if (!matchesProvider(game, request.getProviderName())) {
+                continue;
+            }
+
+            if (!matchesRisk(game, request.getRiskLevel())) {
+                continue;
+            }
+
+            if (!matchesStars(game, request.getMinStars())) {
+                continue;
+            }
+
+            if (!matchesBetCategory(game, request.getBetCategory())) {
+                continue;
+            }
+
+            results.add(convertToGameInfo(game));
+        }
+
+        return new Response(true, "Search results", results);
     }
 
-    String gameName = gameInfo.getGameName();
-    double betAmount = gameInfo.getBetAmount();
+  private Response handlePlaceBet(String playerId, String gameName, Double betAmount) {
+    if (playerId == null || playerId.trim().isEmpty()) {
+        return new Response(false, "Player ID is empty");
+    }
 
     if (gameName == null || gameName.trim().isEmpty()) {
         return new Response(false, "Game name is empty");
+    }
+
+    if (betAmount == null) {
+        return new Response(false, "Bet amount is null");
+    }
+
+    if (betAmount <= 0) {
+        return new Response(false, "Bet amount must be positive");
     }
 
     Game game = storage.getGame(gameName);
@@ -164,6 +258,11 @@ private Response handlePlayGame(GameInfo gameInfo) {
         return new Response(false, "Bet amount is outside allowed range");
     }
 
+    boolean deducted = storage.deductBalance(playerId, betAmount);
+    if (!deducted) {
+        return new Response(false, "Insufficient balance");
+    }
+
     double payout = calculatePayout(game, betAmount);
 
     synchronized (game) {
@@ -171,27 +270,175 @@ private Response handlePlayGame(GameInfo gameInfo) {
         game.addToTotalPayoutAmount(payout);
     }
 
+    storage.addWinnings(playerId, payout);
+
     String message = "Play successful. Bet: " + betAmount + ", Payout: " + payout;
     return new Response(true, message);
 }
-private double calculatePayout(Game game, double betAmount) {
-    double[] multipliers;
 
-    if (game.getRiskLevel().equalsIgnoreCase("low")) {
-        multipliers = new double[]{0.0, 0.0, 0.0, 0.1, 0.5, 1.0, 1.1, 1.3, 2.0, 2.5};
-    } else if (game.getRiskLevel().equalsIgnoreCase("medium")) {
-        multipliers = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.5, 2.5, 3.5};
-    } else {
-        multipliers = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 6.5};
+    private Response handleAddBalance(String playerId, Double amount) {
+    if (playerId == null || playerId.trim().isEmpty()) {
+        return new Response(false, "Player ID is empty");
     }
 
-    int randomNumber = (int) (Math.random() * 1000);
+    String result = storage.addBalance(playerId, amount);
 
-    if (randomNumber % 100 == 0) {
-        return betAmount * game.getJackpot();
+    if ("Balance added successfully".equals(result)) {
+        return new Response(true, result);
     }
 
-    int index = randomNumber % 10;
-    return betAmount * multipliers[index];
+    return new Response(false, result);
 }
+
+    private double calculatePayout(Game game, double betAmount) {
+        double[] multipliers;
+
+        if ("low".equalsIgnoreCase(game.getRiskLevel())) {
+            multipliers = new double[]{0.0, 0.0, 0.0, 0.1, 0.5, 1.0, 1.1, 1.3, 2.0, 2.5};
+        } else if ("medium".equalsIgnoreCase(game.getRiskLevel())) {
+            multipliers = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.5, 2.5, 3.5};
+        } else {
+            multipliers = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 6.5};
+        }
+
+        int randomNumber = getVerifiedRandomNumber(game.getHashKey());
+
+        if (randomNumber % 100 == 0) {
+            return betAmount * game.getJackpot();
+        }
+
+        int index = randomNumber % 10;
+        return betAmount * multipliers[index];
+    }
+
+    private int getVerifiedRandomNumber(String secret) {
+        Socket socket = null;
+        ObjectOutputStream out = null;
+        ObjectInputStream in = null;
+
+        try {
+            socket = new Socket(RNG_HOST, RNG_PORT);
+
+            out = new ObjectOutputStream(socket.getOutputStream());
+            out.flush();
+
+            in = new ObjectInputStream(socket.getInputStream());
+
+            // Στέλνουμε το shared secret στο RNG server
+            out.writeObject(secret);
+            out.flush();
+
+            RandomResult result = (RandomResult) in.readObject();
+
+            String expectedHash = sha256(result.getRandomNumber() + secret);
+
+            if (!expectedHash.equals(result.getHash())) {
+                throw new RuntimeException("Hash verification failed");
+            }
+
+            return result.getRandomNumber();
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to get verified random number from RNG server", e);
+        } finally {
+            try {
+                if (in != null) in.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                if (out != null) out.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private String sha256(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] encoded = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : encoded) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+
+            return hexString.toString();
+
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 algorithm not found", e);
+        }
+    }
+
+    private boolean matchesProvider(Game game, String providerName) {
+        if (providerName == null || providerName.trim().isEmpty()) {
+            return true;
+        }
+
+        return providerName.equalsIgnoreCase(game.getProviderName());
+    }
+
+    private boolean matchesRisk(Game game, String riskLevel) {
+        if (riskLevel == null || riskLevel.trim().isEmpty()) {
+            return true;
+        }
+
+        return riskLevel.equalsIgnoreCase(game.getRiskLevel());
+    }
+
+    private boolean matchesStars(Game game, Integer minStars) {
+        if (minStars == null) {
+            return true;
+        }
+
+        return game.getStars() >= minStars;
+    }
+
+    private boolean matchesBetCategory(Game game, String betCategory) {
+        if (betCategory == null || betCategory.trim().isEmpty()) {
+            return true;
+        }
+
+        String gameCategory = calculateBetCategory(game.getMinBet());
+        return betCategory.equalsIgnoreCase(gameCategory);
+    }
+
+    private String calculateBetCategory(double minBet) {
+        if (minBet >= 5.0) {
+            return "$$$";
+        } else if (minBet >= 1.0) {
+            return "$$";
+        } else {
+            return "$";
+        }
+    }
+
+    private GameInfo convertToGameInfo(Game game) {
+        GameInfo info = new GameInfo();
+        info.setGameName(game.getGameName());
+        info.setProviderName(game.getProviderName());
+        info.setStars(game.getStars());
+        info.setNoOfVotes(game.getNoOfVotes());
+        info.setGameLogo(game.getGameLogo());
+        info.setMinBet(game.getMinBet());
+        info.setMaxBet(game.getMaxBet());
+        info.setRiskLevel(game.getRiskLevel());
+        info.setHashKey(game.getHashKey());
+        info.setActive(game.isActive());
+        return info;
+    }
 }
