@@ -112,9 +112,12 @@ public class HandleThreadWorker extends Thread {
 case GET_PROVIDER_STATS:
     return handleGetProviderStats(request.getProviderName());
             case GET_PLAYER_STATS:
-            case MAP_PROVIDER_STATS:
-            case MAP_PLAYER_STATS:
-                return new Response(false, "Request type not implemented yet: " + type);
+                 return handleGetPlayerStats(request.getPlayerId());
+           case MAP_PROVIDER_STATS:
+    return handleMapProviderStats(request.getProviderName());
+
+case MAP_PLAYER_STATS:
+    return handleMapPlayerStats(request.getPlayerId());
             default:
                 return new Response(false, "Unsupported request type: " + type);
         }
@@ -293,23 +296,20 @@ case GET_PROVIDER_STATS:
     private double calculatePayout(Game game, double betAmount) {
         double[] multipliers;
 
-        if ("low".equalsIgnoreCase(game.getRiskLevel())) {
-            multipliers = new double[]{0.0, 0.0, 0.0, 0.1, 0.5, 1.0, 1.1, 1.3, 2.0, 2.5};
-        } else if ("medium".equalsIgnoreCase(game.getRiskLevel())) {
-            multipliers = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.5, 2.5, 3.5};
-        } else {
-            multipliers = new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 6.5};
-        }
+      double payout = calculatePayout(game, betAmount);
 
-        int randomNumber = getVerifiedRandomNumber(game.getHashKey());
+synchronized (game) {
+    game.addToTotalBetAmount(betAmount);
+    game.addToTotalPayoutAmount(payout);
+}
 
-        if (randomNumber % 100 == 0) {
-            return betAmount * game.getJackpot();
-        }
+storage.addWinnings(playerId, payout);
 
-        int index = randomNumber % 10;
-        return betAmount * multipliers[index];
-    }
+double playerNet = payout - betAmount;
+storage.updatePlayerProfitLoss(playerId, playerNet);
+
+String message = "Play successful. Bet: " + betAmount + ", Payout: " + payout;
+return new Response(true, message); }
 
     private int getVerifiedRandomNumber(String secret) {
         Socket socket = null;
@@ -426,6 +426,43 @@ case GET_PROVIDER_STATS:
             return "$";
         }
     }
+
+    private Response handleGetPlayerStats(String playerId) {
+    if (playerId == null || playerId.trim().isEmpty()) {
+        return new Response(false, "Player ID is empty");
+    }
+
+    return new Response(
+            true,
+            "Player partial totals ready",
+            storage.getPlayerPartialTotals(playerId)
+    ); }
+
+    private Response handleMapProviderStats(String providerName) {
+    if (providerName == null || providerName.trim().isEmpty()) {
+        return new Response(false, "Provider name is empty");
+    }
+
+    return new Response(
+            true,
+            "Provider map output ready",
+            storage.getProviderPartialTotals(providerName)
+    );
+
+
+}
+
+private Response handleMapPlayerStats(String playerId) {
+    if (playerId == null || playerId.trim().isEmpty()) {
+        return new Response(false, "Player ID is empty");
+    }
+
+    return new Response(
+            true,
+            "Player map output ready",
+            storage.getPlayerPartialTotals(playerId)
+    );
+}
 
     private GameInfo convertToGameInfo(Game game) {
         GameInfo info = new GameInfo();

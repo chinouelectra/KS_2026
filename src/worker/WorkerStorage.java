@@ -8,10 +8,12 @@ public class WorkerStorage {
 
     private HashMap<String, Game> games;
     private HashMap<String, Double> playerBalances;
+    private HashMap<String, Double> playerProfitLoss;
 
     public WorkerStorage() {
         games = new HashMap<>();
         playerBalances = new HashMap<>();
+        playerProfitLoss = new HashMap<>();
     }
 
     public synchronized String addGame(Game game) {
@@ -186,5 +188,34 @@ public synchronized void addWinnings(String playerId, Double payout) {
 
     double currentBalance = playerBalances.getOrDefault(playerId, 0.0);
     playerBalances.put(playerId, currentBalance + payout);
+}
+
+
+public synchronized void updatePlayerProfitLoss(String playerId, double netAmount) {
+    if (playerId == null || playerId.trim().isEmpty()) {
+        return;
+    }
+
+    double current = playerProfitLoss.getOrDefault(playerId, 0.0);
+    playerProfitLoss.put(playerId, current + netAmount);
+}
+
+public synchronized double getPlayerProfitLoss(String playerId) {
+    if (playerId == null || playerId.trim().isEmpty()) {
+        return 0.0;
+    }
+
+    return playerProfitLoss.getOrDefault(playerId, 0.0);
+}
+
+public synchronized HashMap<String, Double> getPlayerPartialTotals(String playerId) {
+    HashMap<String, Double> partialTotals = new HashMap<>();
+
+    if (playerId == null || playerId.trim().isEmpty()) {
+        return partialTotals;
+    }
+
+    partialTotals.put(playerId, playerProfitLoss.getOrDefault(playerId, 0.0));
+    return partialTotals;
 }
 }
