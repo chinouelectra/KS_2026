@@ -7,6 +7,8 @@ import common.WorkerInfo;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 public class WorkerClient {
 
@@ -21,7 +23,16 @@ public class WorkerClient {
             return (Response) in.readObject();
 
         } catch (Exception e) {
-            return new Response(false, "Failed to communicate with worker: " + e.getMessage());
+            return new Response(false, "Failed to communicate with worker "
+                    + workerInfo.getHost() + ":" + workerInfo.getPort() + " - " + e.getMessage());
         }
+    }
+
+    public List<Response> broadcast(List<WorkerInfo> workers, Request request) {
+        List<Response> responses = new ArrayList<>();
+        for (WorkerInfo worker : workers) {
+            responses.add(sendRequest(worker, request));
+        }
+        return responses;
     }
 }

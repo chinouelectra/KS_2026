@@ -3,123 +3,107 @@ package common;
 import java.io.Serializable;
 
 public class GameInfo implements Serializable {
-    private String gameName;
-    private String providerName;
-    private int stars;
-    private int noOfVotes;
-    private String gameLogo;
-    private double minBet;
-    private double maxBet;
-    private String riskLevel;
-    private String hashKey;
-    private boolean active;
-    private double betAmount;
+    private final String gameName;
+    private final String providerName;
+    private final int stars;
+    private final int noOfVotes;
+    private final String gameLogo;
+    private final double minBet;
+    private final double maxBet;
+    private final String riskLevel;
+    private final String hashKey;
+    private final String betCategory;
+    private final double jackpotMultiplier;
 
-    public GameInfo() {}
+    public GameInfo(String gameName,
+                    String providerName,
+                    int stars,
+                    int noOfVotes,
+                    String gameLogo,
+                    double minBet,
+                    double maxBet,
+                    String riskLevel,
+                    String hashKey) {
+        this.gameName = gameName;
+        this.providerName = providerName;
+        this.stars = stars;
+        this.noOfVotes = noOfVotes;
+        this.gameLogo = gameLogo;
+        this.minBet = minBet;
+        this.maxBet = maxBet;
+        this.riskLevel = riskLevel;
+        this.hashKey = hashKey;
+        this.betCategory = deriveBetCategory(minBet);
+        this.jackpotMultiplier = deriveJackpotMultiplier(riskLevel);
+    }
 
     public String getGameName() {
         return gameName;
-    }
-
-    public void setGameName(String gameName) {
-        this.gameName = gameName;
     }
 
     public String getProviderName() {
         return providerName;
     }
 
-    public void setProviderName(String providerName) {
-        this.providerName = providerName;
-    }
-
     public int getStars() {
         return stars;
-    }
-
-    public void setStars(int stars) {
-        this.stars = stars;
     }
 
     public int getNoOfVotes() {
         return noOfVotes;
     }
 
-    public void setNoOfVotes(int noOfVotes) {
-        this.noOfVotes = noOfVotes;
-    }
-
     public String getGameLogo() {
         return gameLogo;
-    }
-
-    public void setGameLogo(String gameLogo) {
-        this.gameLogo = gameLogo;
     }
 
     public double getMinBet() {
         return minBet;
     }
 
-    public void setMinBet(double minBet) {
-        this.minBet = minBet;
-    }
-
     public double getMaxBet() {
         return maxBet;
-    }
-
-    public void setMaxBet(double maxBet) {
-        this.maxBet = maxBet;
     }
 
     public String getRiskLevel() {
         return riskLevel;
     }
 
-    public void setRiskLevel(String riskLevel) {
-        this.riskLevel = riskLevel;
-    }
-
     public String getHashKey() {
         return hashKey;
     }
 
-    public void setHashKey(String hashKey) {
-        this.hashKey = hashKey;
+    public String getBetCategory() {
+        return betCategory;
     }
 
-    public boolean isActive() {
-        return active;
+    public double getJackpotMultiplier() {
+        return jackpotMultiplier;
     }
 
-    public void setActive(boolean active) {
-        this.active = active;
+    public GameInfo withRiskLevel(String updatedRiskLevel) {
+        return new GameInfo(gameName, providerName, stars, noOfVotes, gameLogo, minBet, maxBet, updatedRiskLevel, hashKey);
     }
 
-    public double getBetAmount() {
-        return betAmount;
+    private static String deriveBetCategory(double minBet) {
+        if (minBet >= 5.0) {
+            return "$$$";
+        }
+        if (minBet >= 1.0) {
+            return "$$";
+        }
+        return "$";
     }
 
-    public void setBetAmount(double betAmount) {
-        this.betAmount = betAmount;
-    }
+    private static double deriveJackpotMultiplier(String riskLevel) {
+        if (riskLevel == null) {
+            return 10.0;
+        }
 
-    @Override
-    public String toString() {
-        return "GameInfo{" +
-                "gameName='" + gameName + '\'' +
-                ", providerName='" + providerName + '\'' +
-                ", stars=" + stars +
-                ", noOfVotes=" + noOfVotes +
-                ", gameLogo='" + gameLogo + '\'' +
-                ", minBet=" + minBet +
-                ", maxBet=" + maxBet +
-                ", riskLevel='" + riskLevel + '\'' +
-                ", hashKey='" + hashKey + '\'' +
-                ", active=" + active +
-                ", betAmount=" + betAmount +
-                '}';
+        return switch (riskLevel.trim().toLowerCase()) {
+            case "medium" -> 20.0;
+            case "high" -> 40.0;
+            default -> 10.0;
+        };
     }
 }
-

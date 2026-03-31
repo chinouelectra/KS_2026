@@ -10,7 +10,11 @@ public class HashRouter {
     }
 
     public WorkerInfo routeByGameName(String gameName) {
-        int hash = Math.abs(gameName.hashCode());
+        if (gameName == null || gameName.isBlank()) {
+            throw new IllegalArgumentException("gameName is required for routing");
+        }
+
+        int hash = gameName.hashCode() & Integer.MAX_VALUE;
         int index = hash % workerRegistry.size();
         return workerRegistry.getByIndex(index);
     }
