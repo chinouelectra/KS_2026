@@ -1,8 +1,6 @@
 package worker;
 
 import java.util.HashMap;
-import java.util.ArrayList;
-import java.util.List;
 
 public class WorkerStorage {
 
@@ -34,8 +32,6 @@ public class WorkerStorage {
         games.put(gameName, game);
         return "Game added successfully";
     }
-
-    
 
 
     public synchronized String removeGame(String gameName) {
@@ -73,33 +69,33 @@ public class WorkerStorage {
     }
 
     public synchronized String updateBetLimits(String gameName, Double newMinBet, Double newMaxBet) {
-    if (gameName == null || gameName.trim().isEmpty()) {
-        return "Game name is empty";
+        if (gameName == null || gameName.trim().isEmpty()) {
+            return "Game name is empty";
+        }
+
+        if (newMinBet == null || newMaxBet == null) {
+            return "Bet limits are null";
+        }
+
+        if (newMinBet <= 0 || newMaxBet <= 0) {
+            return "Bet limits must be positive";
+        }
+
+        if (newMinBet > newMaxBet) {
+            return "Min bet cannot be greater than max bet";
+        }
+
+        Game game = games.get(gameName);
+
+        if (game == null) {
+            return "Game not found";
+        }
+
+        game.setMinBet(newMinBet);
+        game.setMaxBet(newMaxBet);
+
+        return "Bet limits updated successfully";
     }
-
-    if (newMinBet == null || newMaxBet == null) {
-        return "Bet limits are null";
-    }
-
-    if (newMinBet <= 0 || newMaxBet <= 0) {
-        return "Bet limits must be positive";
-    }
-
-    if (newMinBet > newMaxBet) {
-        return "Min bet cannot be greater than max bet";
-    }
-
-    Game game = games.get(gameName);
-
-    if (game == null) {
-        return "Game not found";
-    }
-
-    game.setMinBet(newMinBet);
-    game.setMaxBet(newMaxBet);
-
-    return "Bet limits updated successfully";
-}
 
     public synchronized Game getGame(String gameName) {
         return games.get(gameName);
@@ -107,18 +103,6 @@ public class WorkerStorage {
 
     public synchronized HashMap<String, Game> getAllGames() {
         return new HashMap<>(games);
-    }
-
-    public synchronized List<Game> getActiveGames() {
-        List<Game> result = new ArrayList<>();
-
-        for (Game game : games.values()) {
-            if (game.isActive()) {
-                result.add(game);
-            }
-        }
-
-        return result;
     }
 
     public synchronized HashMap<String, Double> getProviderPartialTotals(String providerName) {
@@ -136,86 +120,70 @@ public class WorkerStorage {
         }
 
         return partialTotals;
-    
+
     }
 
     public synchronized String addBalance(String playerId, Double amount) {
-    if (playerId == null || playerId.trim().isEmpty()) {
-        return "Player ID is empty";
+        if (playerId == null || playerId.trim().isEmpty()) {
+            return "Player ID is empty";
+        }
+
+        if (amount == null) {
+            return "Amount is null";
+        }
+
+        if (amount <= 0) {
+            return "Amount must be positive";
+        }
+
+        double currentBalance = playerBalances.getOrDefault(playerId, 0.0);
+        playerBalances.put(playerId, currentBalance + amount);
+
+        return "Balance added successfully";
     }
 
-    if (amount == null) {
-        return "Amount is null";
+    public synchronized boolean deductBalance(String playerId, Double amount) {
+        if (playerId == null || playerId.trim().isEmpty() || amount == null || amount <= 0) {
+            return false;
+        }
+
+        double currentBalance = playerBalances.getOrDefault(playerId, 0.0);
+
+        if (currentBalance < amount) {
+            return false;
+        }
+
+        playerBalances.put(playerId, currentBalance - amount);
+        return true;
     }
 
-    if (amount <= 0) {
-        return "Amount must be positive";
+    public synchronized void addWinnings(String playerId, Double payout) {
+        if (playerId == null || playerId.trim().isEmpty() || payout == null || payout < 0) {
+            return;
+        }
+
+        double currentBalance = playerBalances.getOrDefault(playerId, 0.0);
+        playerBalances.put(playerId, currentBalance + payout);
     }
 
-    double currentBalance = playerBalances.getOrDefault(playerId, 0.0);
-    playerBalances.put(playerId, currentBalance + amount);
 
-    return "Balance added successfully";
-}
+    public synchronized void updatePlayerProfitLoss(String playerId, double netAmount) {
+        if (playerId == null || playerId.trim().isEmpty()) {
+            return;
+        }
 
-public synchronized Double getPlayerBalance(String playerId) {
-    if (playerId == null || playerId.trim().isEmpty()) {
-        return 0.0;
+        double current = playerProfitLoss.getOrDefault(playerId, 0.0);
+        playerProfitLoss.put(playerId, current + netAmount);
     }
 
-    return playerBalances.getOrDefault(playerId, 0.0);
-}
+    public synchronized HashMap<String, Double> getPlayerPartialTotals(String playerId) {
+        HashMap<String, Double> partialTotals = new HashMap<>();
 
-public synchronized boolean deductBalance(String playerId, Double amount) {
-    if (playerId == null || playerId.trim().isEmpty() || amount == null || amount <= 0) {
-        return false;
-    }
+        if (playerId == null || playerId.trim().isEmpty()) {
+            return partialTotals;
+        }
 
-    double currentBalance = playerBalances.getOrDefault(playerId, 0.0);
-
-    if (currentBalance < amount) {
-        return false;
-    }
-
-    playerBalances.put(playerId, currentBalance - amount);
-    return true;
-}
-
-public synchronized void addWinnings(String playerId, Double payout) {
-    if (playerId == null || playerId.trim().isEmpty() || payout == null || payout < 0) {
-        return;
-    }
-
-    double currentBalance = playerBalances.getOrDefault(playerId, 0.0);
-    playerBalances.put(playerId, currentBalance + payout);
-}
-
-
-public synchronized void updatePlayerProfitLoss(String playerId, double netAmount) {
-    if (playerId == null || playerId.trim().isEmpty()) {
-        return;
-    }
-
-    double current = playerProfitLoss.getOrDefault(playerId, 0.0);
-    playerProfitLoss.put(playerId, current + netAmount);
-}
-
-public synchronized double getPlayerProfitLoss(String playerId) {
-    if (playerId == null || playerId.trim().isEmpty()) {
-        return 0.0;
-    }
-
-    return playerProfitLoss.getOrDefault(playerId, 0.0);
-}
-
-public synchronized HashMap<String, Double> getPlayerPartialTotals(String playerId) {
-    HashMap<String, Double> partialTotals = new HashMap<>();
-
-    if (playerId == null || playerId.trim().isEmpty()) {
+        partialTotals.put("Total Profit/Loss", playerProfitLoss.getOrDefault(playerId, 0.0));
         return partialTotals;
     }
-
-    partialTotals.put(playerId, playerProfitLoss.getOrDefault(playerId, 0.0));
-    return partialTotals;
-}
 }
