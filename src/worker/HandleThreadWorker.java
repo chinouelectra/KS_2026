@@ -102,7 +102,6 @@ public class HandleThreadWorker extends Thread {
             case PLACE_BET:
                 return handlePlaceBet(request.getPlayerId(), request.getGameName(), request.getBetAmount());
 
-            // Αυτά θα τα υλοποιήσεις αργότερα
             case ADD_BALANCE:
                 return handleAddBalance(request.getPlayerId(), request.getBetAmount());
 
@@ -263,7 +262,7 @@ public class HandleThreadWorker extends Thread {
             return new Response(false, "Insufficient balance");
         }
 
-        double payout = calculatePayout(game, betAmount, playerId);
+        double payout = calculatePayout(game, betAmount);
 
         synchronized (game) {
             game.addToTotalBetAmount(betAmount);
@@ -271,6 +270,7 @@ public class HandleThreadWorker extends Thread {
         }
 
         storage.addWinnings(playerId, payout);
+        storage.updatePlayerProfitLoss(playerId, payout - betAmount);
 
         String message = "Play successful. Bet: " + betAmount + ", Payout: " + payout;
         return new Response(true, message);
@@ -290,23 +290,22 @@ public class HandleThreadWorker extends Thread {
         return new Response(false, result);
     }
 
-    private double calculatePayout(Game game, double betAmount, String playerId) {
-        double[] multipliers;
+    private double calculatePayout(Game game, double betAmount) {
+        int randomNumber = getVerifiedRandomNumber(game.getHashKey());
+        int mod100 = Math.floorMod(randomNumber, 100);
 
-        double payout = calculatePayout(game, betAmount, playerId);
-
-        synchronized (game) {
-            game.addToTotalBetAmount(betAmount);
-            game.addToTotalPayoutAmount(payout);
+        if (mod100 == 0) {
+            return betAmount * game.getJackpot();
         }
 
-        storage.addWinnings(playerId, payout);
+        int mod10 = Math.floorMod(randomNumber, 10);
+        double multiplier = switch (game.getRiskLevel().toLowerCase()) {
+            case "high" -> new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 6.5}[mod10];
+            case "medium" -> new double[]{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.5, 2.5}[mod10];
+            default -> new double[]{0.0, 0.0, 0.0, 0.1, 0.5, 1.0, 1.1, 1.3, 2.0, 2.5}[mod10];
+        };
 
-        double playerNet = payout - betAmount;
-        storage.updatePlayerProfitLoss(playerId, playerNet);
-
-        String message = "Play successful. Bet: " + betAmount + ", Payout: " + payout;
-        return payout;
+        return betAmount * multiplier;
     }
 
     private int getVerifiedRandomNumber(String secret) {

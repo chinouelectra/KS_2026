@@ -5,6 +5,7 @@ import common.RequestType;
 import common.Response;
 import common.WorkerInfo;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,18 +34,56 @@ public class MasterDispatcher {
         }
 
         return switch (request.getType()) {
-            case ADD_GAME -> casinoState.addGame(request.getGameInfo());
-            case REMOVE_GAME -> casinoState.removeGame(request.getGameName());
-            case UPDATE_GAME_RISK -> casinoState.updateRisk(request.getGameName(), request.getRiskLevel());
-            case UPDATE_GAME_BET_LIMITS -> casinoState.updateBetLimits(request.getGameName(), request.getMinBet(), request.getMaxBet());
-            case GET_PROVIDER_STATS -> casinoState.providerStats(request.getProviderName());
-            case GET_PLAYER_STATS -> casinoState.playerStats(request.getPlayerId());
+            case ADD_GAME -> addGameToMasterAndWorker(request);
+            case REMOVE_GAME -> removeGameFromMasterAndWorker(request);
+            case UPDATE_GAME_RISK -> updateRiskOnMasterAndWorker(request);
+            case UPDATE_GAME_BET_LIMITS -> updateBetLimitsOnMasterAndWorker(request);
+            case GET_PROVIDER_STATS -> reduceFromWorkers(
+                    Request.providerMapPayload(request.getProviderName(), Collections.emptyMap()),
+                    RequestType.MAP_PROVIDER_STATS
+            );
+            case GET_PLAYER_STATS -> reduceFromWorkers(
+                    Request.playerMapPayload(request.getPlayerId(), Collections.emptyMap()),
+                    RequestType.MAP_PLAYER_STATS
+            );
             case GET_ALL_GAMES -> casinoState.getAllAvailableGames();
             case SEARCH_GAMES -> casinoState.search(request.getProviderName(), request.getRiskLevel(), request.getBetCategory(), request.getMinStars());
-            case PLACE_BET -> casinoState.placeBet(request.getPlayerId(), request.getGameName(), request.getBetAmount());
-            case ADD_BALANCE -> casinoState.addBalance(request.getPlayerId(), request.getBetAmount());
+            case PLACE_BET -> routeByGameName(request.getGameName(), request);
+            case ADD_BALANCE -> broadcastToWorkers(request);
             default -> new Response(false, "Unsupported request type for master: " + request.getType());
         };
+    }
+
+    private Response addGameToMasterAndWorker(Request request) {
+        Response masterResponse = casinoState.addGame(request.getGameInfo());
+        if (!masterResponse.isSuccess()) {
+            return masterResponse;
+        }
+        return routeByGameName(request.getGameInfo().getGameName(), request);
+    }
+
+    private Response removeGameFromMasterAndWorker(Request request) {
+        Response masterResponse = casinoState.removeGame(request.getGameName());
+        if (!masterResponse.isSuccess()) {
+            return masterResponse;
+        }
+        return routeByGameName(request.getGameName(), request);
+    }
+
+    private Response updateRiskOnMasterAndWorker(Request request) {
+        Response masterResponse = casinoState.updateRisk(request.getGameName(), request.getRiskLevel());
+        if (!masterResponse.isSuccess()) {
+            return masterResponse;
+        }
+        return routeByGameName(request.getGameName(), request);
+    }
+
+    private Response updateBetLimitsOnMasterAndWorker(Request request) {
+        Response masterResponse = casinoState.updateBetLimits(request.getGameName(), request.getMinBet(), request.getMaxBet());
+        if (!masterResponse.isSuccess()) {
+            return masterResponse;
+        }
+        return routeByGameName(request.getGameName(), request);
     }
 
     private Response routeByGameName(String gameName, Request request) {
@@ -72,6 +111,16 @@ public class MasterDispatcher {
                 : Request.playerMapPayload(request.getPlayerId(), mergedPartials);
 
         return reducerClient.reduce(reducerRequest);
+    }
+
+    private Response broadcastToWorkers(Request request) {
+        List<Response> responses = workerClient.broadcast(workerRegistry.getWorkers(), request);
+        for (Response response : responses) {
+            if (!response.isSuccess()) {
+                return new Response(false, "Worker request failed: " + response.getMessage());
+            }
+        }
+        return new Response(true, "Request applied to all workers");
     }
 
     private void accumulate(Map<String, Double> mergedPartials, Map<String, Double> totals) {
