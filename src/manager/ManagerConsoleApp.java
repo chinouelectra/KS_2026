@@ -59,13 +59,8 @@ public class ManagerConsoleApp {
     }
 
     private static Request buildAddGameRequest(Scanner scanner) {
-        System.out.print("Load game from JSON file? (y/n): ");
-        String loadFromJson = scanner.nextLine().trim().toLowerCase();
-
-        GameInfo gameInfo = "y".equals(loadFromJson)
-                ? buildGameFromJson(scanner)
-                : buildGameFromInput(scanner);
-
+        System.out.print("Load game from JSON file.");
+        GameInfo gameInfo = buildGameFromJson(scanner);
         return Request.addGame(gameInfo);
     }
 
@@ -77,39 +72,6 @@ public class ManagerConsoleApp {
         } catch (Exception e) {
             throw new IllegalArgumentException("Failed to load game JSON: " + e.getMessage(), e);
         }
-    }
-
-    private static GameInfo buildGameFromInput(Scanner scanner) {
-        System.out.print("Game name: ");
-        String gameName = scanner.nextLine().trim();
-        System.out.print("Provider name: ");
-        String providerName = scanner.nextLine().trim();
-        System.out.print("Stars (1-5): ");
-        int stars = Integer.parseInt(scanner.nextLine().trim());
-        System.out.print("Votes: ");
-        int votes = Integer.parseInt(scanner.nextLine().trim());
-        System.out.print("Logo path: ");
-        String gameLogo = scanner.nextLine().trim();
-        System.out.print("Min bet: ");
-        double minBet = Double.parseDouble(scanner.nextLine().trim());
-        System.out.print("Max bet: ");
-        double maxBet = Double.parseDouble(scanner.nextLine().trim());
-        System.out.print("Risk level (low/medium/high): ");
-        String riskLevel = scanner.nextLine().trim();
-        System.out.print("Shared secret/hash key: ");
-        String hashKey = scanner.nextLine().trim();
-
-        return new GameInfo(
-                gameName,
-                providerName,
-                stars,
-                votes,
-                gameLogo,
-                minBet,
-                maxBet,
-                riskLevel,
-                hashKey
-        );
     }
 
     private static Response send(String host, int port, Request request) throws Exception {

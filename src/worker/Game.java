@@ -1,6 +1,7 @@
 package worker;
 
 import java.io.Serializable;
+
 import common.GameInfo;
 
 public class Game implements Serializable {
@@ -17,17 +18,17 @@ public class Game implements Serializable {
     private String hashKey;
     private boolean active;
     private double jackpot;
-private double totalBetAmount;
-private double totalPayoutAmount;
+    private double totalBetAmount;
+    private double totalPayoutAmount;
 
     @Override
-public String toString() {
-    return "Game{" +
-            "name='" + gameName + '\'' +
-            ", risk='" + riskLevel + '\'' +
-            ", active=" + active +
-            '}';
-}
+    public String toString() {
+        return "Game{" +
+                "name='" + gameName + '\'' +
+                ", risk='" + riskLevel + '\'' +
+                ", active=" + active +
+                '}';
+    }
 
     public Game(String gameName, String providerName, int stars, int noOfVotes,
                 String gameLogo, double minBet, double maxBet,
@@ -60,49 +61,90 @@ public String toString() {
         this.totalPayoutAmount = 0;
     }
 
-    public String getGameName() { return gameName; }
-    public String getProviderName() { return providerName; }
-    public int getStars() { return stars; }
-    public int getNoOfVotes() { return noOfVotes; }
-    public String getGameLogo() { return gameLogo; }
-    public double getMinBet() { return minBet; }
-    public double getMaxBet() { return maxBet; }
-    public String getRiskLevel() { return riskLevel; }
-    public String getHashKey() { return hashKey; }
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
+    public String getGameName() {
+        return gameName;
+    }
+
+    public String getProviderName() {
+        return providerName;
+    }
+
+    public int getStars() {
+        return stars;
+    }
+
+    public int getNoOfVotes() {
+        return noOfVotes;
+    }
+
+    public String getGameLogo() {
+        return gameLogo;
+    }
+
+    public double getMinBet() {
+        return minBet;
+    }
+
+    public double getMaxBet() {
+        return maxBet;
+    }
+
+    public String getRiskLevel() {
+        return riskLevel;
+    }
+
+    public String getHashKey() {
+        return hashKey;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
     private double calculateJackpot(String riskLevel) {
-    if (riskLevel == null) return 10;
+        if (riskLevel == null) return 10;
 
-    if (riskLevel.equalsIgnoreCase("low")) return 10;
-    if (riskLevel.equalsIgnoreCase("medium")) return 20;
-    if (riskLevel.equalsIgnoreCase("high")) return 40;
+        if (riskLevel.equalsIgnoreCase("low")) return 10;
+        if (riskLevel.equalsIgnoreCase("medium")) return 20;
+        if (riskLevel.equalsIgnoreCase("high")) return 40;
 
-    return 10;
-}
+        return 10;
+    }
 
-public double getJackpot() {
-    return jackpot;
-}
+    public double getJackpot() {
+        return jackpot;
+    }
 
-public double getTotalBetAmount() {
-    return totalBetAmount;
-}
+    public double getTotalBetAmount() {
+        return totalBetAmount;
+    }
 
-public double getTotalPayoutAmount() {
-    return totalPayoutAmount;
-}
+    public double getTotalPayoutAmount() {
+        return totalPayoutAmount;
+    }
 
-public void addToTotalBetAmount(double amount) {
-    totalBetAmount += amount;
-}
+    public void addToTotalBetAmount(double amount) {
+        totalBetAmount += amount;
+    }
 
-public void addToTotalPayoutAmount(double amount) {
-    totalPayoutAmount += amount;
-}
+    public void addToTotalPayoutAmount(double amount) {
+        totalPayoutAmount += amount;
+    }
 
-public void setRiskLevel(String riskLevel) {
-    this.riskLevel = riskLevel;
-    this.jackpot = calculateJackpot(riskLevel);
-}
+    public void setMinBet(double minBet) {
+        this.minBet = minBet;
+    }
+
+    public void setMaxBet(double maxBet) {
+        this.maxBet = maxBet;
+    }
+
+    public void setRiskLevel(String riskLevel) {
+        this.riskLevel = riskLevel;
+        this.jackpot = calculateJackpot(riskLevel);
+    }
 }

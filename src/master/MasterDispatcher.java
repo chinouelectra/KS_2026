@@ -39,10 +39,10 @@ public class MasterDispatcher {
             case UPDATE_GAME_BET_LIMITS -> casinoState.updateBetLimits(request.getGameName(), request.getMinBet(), request.getMaxBet());
             case GET_PROVIDER_STATS -> casinoState.providerStats(request.getProviderName());
             case GET_PLAYER_STATS -> casinoState.playerStats(request.getPlayerId());
+            case GET_ALL_GAMES -> casinoState.getAllAvailableGames();
             case SEARCH_GAMES -> casinoState.search(request.getProviderName(), request.getRiskLevel(), request.getBetCategory(), request.getMinStars());
             case PLACE_BET -> casinoState.placeBet(request.getPlayerId(), request.getGameName(), request.getBetAmount());
             case ADD_BALANCE -> casinoState.addBalance(request.getPlayerId(), request.getBetAmount());
-            case HEALTH_CHECK -> new Response(true, "MASTER_OK");
             default -> new Response(false, "Unsupported request type for master: " + request.getType());
         };
     }
