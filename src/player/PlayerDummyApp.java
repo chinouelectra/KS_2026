@@ -20,16 +20,32 @@ public class PlayerDummyApp {
                 printMenu();
                 String option = scanner.nextLine().trim();
                 switch (option) {
-                    case "1" -> searchGames(host, port, scanner);
-                    case "2" -> addBalance(host, port, scanner);
-                    case "3" -> play(host, port, scanner);
-                    case "4" -> playerStats(host, port, scanner);
+                    case "1" -> listAllAvailableGames(host, port);
+                    case "2" -> searchGames(host, port, scanner);
+                    case "3" -> addBalance(host, port, scanner);
+                    case "4" -> play(host, port, scanner);
+                    case "5" -> playerStats(host, port, scanner);
                     case "0" -> running = false;
                     default -> System.out.println("Unknown option");
                 }
             }
         } catch (Exception e) {
             System.err.println("Player dummy app failed: " + e.getMessage());
+        }
+    }
+
+    private static void listAllAvailableGames(String host, int port) throws Exception {
+        Response response = send(host, port, Request.getAllGames());
+        System.out.println((response.isSuccess() ? "OK" : "ERROR") + ": " + response.getMessage());
+
+        if (response.getGames() == null || response.getGames().isEmpty()) {
+            System.out.println("No available games found.");
+            return;
+        }
+
+        for (GameInfo game : response.getGames()) {
+            System.out.printf("- %s | provider=%s | stars=%d | risk=%s | bet=%s | range=[%.2f..%.2f]%n",
+                    game.getGameName(), game.getProviderName(), game.getStars(), game.getRiskLevel(), game.getBetCategory(), game.getMinBet(), game.getMaxBet());
         }
     }
 
@@ -101,10 +117,11 @@ public class PlayerDummyApp {
     private static void printMenu() {
         System.out.println();
         System.out.println("=== Player Dummy App ===");
-        System.out.println("1. search() with filters");
-        System.out.println("2. addBalance()");
-        System.out.println("3. play()");
-        System.out.println("4. View my stats");
+        System.out.println("1. List all available games");
+        System.out.println("2. search() with filters");
+        System.out.println("3. addBalance()");
+        System.out.println("4. play()");
+        System.out.println("5. View my stats");
         System.out.println("0. Exit");
         System.out.print("Choose option: ");
     }

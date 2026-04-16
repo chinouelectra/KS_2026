@@ -100,24 +100,21 @@ public class HandleThreadWorker extends Thread {
                 return handleSearchGames(request);
 
             case PLACE_BET:
-    return handlePlaceBet(request.getPlayerId(), request.getGameName(), request.getBetAmount());
-
-            case HEALTH_CHECK:
-                return new Response(true, "Worker is alive");
+                return handlePlaceBet(request.getPlayerId(), request.getGameName(), request.getBetAmount());
 
             // Αυτά θα τα υλοποιήσεις αργότερα
             case ADD_BALANCE:
-    return handleAddBalance(request.getPlayerId(), request.getBetAmount());
+                return handleAddBalance(request.getPlayerId(), request.getBetAmount());
 
-case GET_PROVIDER_STATS:
-    return handleGetProviderStats(request.getProviderName());
+            case GET_PROVIDER_STATS:
+                return handleGetProviderStats(request.getProviderName());
             case GET_PLAYER_STATS:
-                 return handleGetPlayerStats(request.getPlayerId());
-           case MAP_PROVIDER_STATS:
-    return handleMapProviderStats(request.getProviderName());
+                return handleGetPlayerStats(request.getPlayerId());
+            case MAP_PROVIDER_STATS:
+                return handleMapProviderStats(request.getProviderName());
 
-case MAP_PLAYER_STATS:
-    return handleMapPlayerStats(request.getPlayerId());
+            case MAP_PLAYER_STATS:
+                return handleMapPlayerStats(request.getPlayerId());
             default:
                 return new Response(false, "Unsupported request type: " + type);
         }
@@ -174,31 +171,31 @@ case MAP_PLAYER_STATS:
         return new Response(false, result);
     }
 
-   private Response handleUpdateBetLimits(String gameName, Double minBet, Double maxBet) {
-    if (gameName == null || gameName.trim().isEmpty()) {
-        return new Response(false, "Game name is empty");
+    private Response handleUpdateBetLimits(String gameName, Double minBet, Double maxBet) {
+        if (gameName == null || gameName.trim().isEmpty()) {
+            return new Response(false, "Game name is empty");
+        }
+
+        String result = storage.updateBetLimits(gameName, minBet, maxBet);
+
+        if ("Bet limits updated successfully".equals(result)) {
+            return new Response(true, result);
+        }
+
+        return new Response(false, result);
     }
-
-    String result = storage.updateBetLimits(gameName, minBet, maxBet);
-
-    if ("Bet limits updated successfully".equals(result)) {
-        return new Response(true, result);
-    }
-
-    return new Response(false, result);
-}
 
     private Response handleGetProviderStats(String providerName) {
-    if (providerName == null || providerName.trim().isEmpty()) {
-        return new Response(false, "Provider name is empty");
-    }
+        if (providerName == null || providerName.trim().isEmpty()) {
+            return new Response(false, "Provider name is empty");
+        }
 
-    return new Response(
-            true,
-            "Provider partial totals ready",
-            storage.getProviderPartialTotals(providerName)
-    );
-}
+        return new Response(
+                true,
+                "Provider partial totals ready",
+                storage.getProviderPartialTotals(providerName)
+        );
+    }
 
     private Response handleSearchGames(Request request) {
         List<GameInfo> results = new ArrayList<>();
@@ -230,86 +227,87 @@ case MAP_PLAYER_STATS:
         return new Response(true, "Search results", results);
     }
 
-  private Response handlePlaceBet(String playerId, String gameName, Double betAmount) {
-    if (playerId == null || playerId.trim().isEmpty()) {
-        return new Response(false, "Player ID is empty");
+    private Response handlePlaceBet(String playerId, String gameName, Double betAmount) {
+        if (playerId == null || playerId.trim().isEmpty()) {
+            return new Response(false, "Player ID is empty");
+        }
+
+        if (gameName == null || gameName.trim().isEmpty()) {
+            return new Response(false, "Game name is empty");
+        }
+
+        if (betAmount == null) {
+            return new Response(false, "Bet amount is null");
+        }
+
+        if (betAmount <= 0) {
+            return new Response(false, "Bet amount must be positive");
+        }
+
+        Game game = storage.getGame(gameName);
+
+        if (game == null) {
+            return new Response(false, "Game not found");
+        }
+
+        if (!game.isActive()) {
+            return new Response(false, "Game is inactive");
+        }
+
+        if (betAmount < game.getMinBet() || betAmount > game.getMaxBet()) {
+            return new Response(false, "Bet amount is outside allowed range");
+        }
+
+        boolean deducted = storage.deductBalance(playerId, betAmount);
+        if (!deducted) {
+            return new Response(false, "Insufficient balance");
+        }
+
+        double payout = calculatePayout(game, betAmount, playerId);
+
+        synchronized (game) {
+            game.addToTotalBetAmount(betAmount);
+            game.addToTotalPayoutAmount(payout);
+        }
+
+        storage.addWinnings(playerId, payout);
+
+        String message = "Play successful. Bet: " + betAmount + ", Payout: " + payout;
+        return new Response(true, message);
     }
-
-    if (gameName == null || gameName.trim().isEmpty()) {
-        return new Response(false, "Game name is empty");
-    }
-
-    if (betAmount == null) {
-        return new Response(false, "Bet amount is null");
-    }
-
-    if (betAmount <= 0) {
-        return new Response(false, "Bet amount must be positive");
-    }
-
-    Game game = storage.getGame(gameName);
-
-    if (game == null) {
-        return new Response(false, "Game not found");
-    }
-
-    if (!game.isActive()) {
-        return new Response(false, "Game is inactive");
-    }
-
-    if (betAmount < game.getMinBet() || betAmount > game.getMaxBet()) {
-        return new Response(false, "Bet amount is outside allowed range");
-    }
-
-    boolean deducted = storage.deductBalance(playerId, betAmount);
-    if (!deducted) {
-        return new Response(false, "Insufficient balance");
-    }
-
-    double payout = calculatePayout(game, betAmount);
-
-    synchronized (game) {
-        game.addToTotalBetAmount(betAmount);
-        game.addToTotalPayoutAmount(payout);
-    }
-
-    storage.addWinnings(playerId, payout);
-
-    String message = "Play successful. Bet: " + betAmount + ", Payout: " + payout;
-    return new Response(true, message);
-}
 
     private Response handleAddBalance(String playerId, Double amount) {
-    if (playerId == null || playerId.trim().isEmpty()) {
-        return new Response(false, "Player ID is empty");
+        if (playerId == null || playerId.trim().isEmpty()) {
+            return new Response(false, "Player ID is empty");
+        }
+
+        String result = storage.addBalance(playerId, amount);
+
+        if ("Balance added successfully".equals(result)) {
+            return new Response(true, result);
+        }
+
+        return new Response(false, result);
     }
 
-    String result = storage.addBalance(playerId, amount);
-
-    if ("Balance added successfully".equals(result)) {
-        return new Response(true, result);
-    }
-
-    return new Response(false, result);
-}
-
-    private double calculatePayout(Game game, double betAmount) {
+    private double calculatePayout(Game game, double betAmount, String playerId) {
         double[] multipliers;
 
-      double payout = calculatePayout(game, betAmount);
+        double payout = calculatePayout(game, betAmount, playerId);
 
-synchronized (game) {
-    game.addToTotalBetAmount(betAmount);
-    game.addToTotalPayoutAmount(payout);
-}
+        synchronized (game) {
+            game.addToTotalBetAmount(betAmount);
+            game.addToTotalPayoutAmount(payout);
+        }
 
-storage.addWinnings(playerId, payout);
+        storage.addWinnings(playerId, payout);
 
-double playerNet = payout - betAmount;
-storage.updatePlayerProfitLoss(playerId, playerNet);
+        double playerNet = payout - betAmount;
+        storage.updatePlayerProfitLoss(playerId, playerNet);
 
-String message = "Play successful. Bet: " + betAmount + ", Payout: " + payout;
-return new Response(true, message); }
+        String message = "Play successful. Bet: " + betAmount + ", Payout: " + payout;
+        return payout;
+    }
 
     private int getVerifiedRandomNumber(String secret) {
         Socket socket = null;
@@ -428,54 +426,54 @@ return new Response(true, message); }
     }
 
     private Response handleGetPlayerStats(String playerId) {
-    if (playerId == null || playerId.trim().isEmpty()) {
-        return new Response(false, "Player ID is empty");
-    }
+        if (playerId == null || playerId.trim().isEmpty()) {
+            return new Response(false, "Player ID is empty");
+        }
 
-    return new Response(
-            true,
-            "Player partial totals ready",
-            storage.getPlayerPartialTotals(playerId)
-    ); }
+        return new Response(
+                true,
+                "Player partial totals ready",
+                storage.getPlayerPartialTotals(playerId)
+        );
+    }
 
     private Response handleMapProviderStats(String providerName) {
-    if (providerName == null || providerName.trim().isEmpty()) {
-        return new Response(false, "Provider name is empty");
+        if (providerName == null || providerName.trim().isEmpty()) {
+            return new Response(false, "Provider name is empty");
+        }
+
+        return new Response(
+                true,
+                "Provider map output ready",
+                storage.getProviderPartialTotals(providerName)
+        );
+
+
     }
 
-    return new Response(
-            true,
-            "Provider map output ready",
-            storage.getProviderPartialTotals(providerName)
-    );
+    private Response handleMapPlayerStats(String playerId) {
+        if (playerId == null || playerId.trim().isEmpty()) {
+            return new Response(false, "Player ID is empty");
+        }
 
-
-}
-
-private Response handleMapPlayerStats(String playerId) {
-    if (playerId == null || playerId.trim().isEmpty()) {
-        return new Response(false, "Player ID is empty");
+        return new Response(
+                true,
+                "Player map output ready",
+                storage.getPlayerPartialTotals(playerId)
+        );
     }
-
-    return new Response(
-            true,
-            "Player map output ready",
-            storage.getPlayerPartialTotals(playerId)
-    );
-}
 
     private GameInfo convertToGameInfo(Game game) {
-        GameInfo info = new GameInfo();
-        info.setGameName(game.getGameName());
-        info.setProviderName(game.getProviderName());
-        info.setStars(game.getStars());
-        info.setNoOfVotes(game.getNoOfVotes());
-        info.setGameLogo(game.getGameLogo());
-        info.setMinBet(game.getMinBet());
-        info.setMaxBet(game.getMaxBet());
-        info.setRiskLevel(game.getRiskLevel());
-        info.setHashKey(game.getHashKey());
-        info.setActive(game.isActive());
-        return info;
+        return new GameInfo(
+                game.getGameName(),
+                game.getProviderName(),
+                game.getStars(),
+                game.getNoOfVotes(),
+                game.getGameLogo(),
+                game.getMinBet(),
+                game.getMaxBet(),
+                game.getRiskLevel(),
+                game.getHashKey()
+        );
     }
 }

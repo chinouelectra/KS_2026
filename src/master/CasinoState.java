@@ -47,6 +47,10 @@ public class CasinoState {
         return new Response(true, "Bet limits updated for " + gameName);
     }
 
+    public synchronized Response getAllAvailableGames() {
+        return new Response(true, "All available games", new ArrayList<>(gamesByName.values()));
+    }
+
     public synchronized Response search(String providerName, String riskLevel, String betCategory, Integer minStars) {
         List<GameInfo> filtered = new ArrayList<>();
         for (GameInfo g : gamesByName.values()) {

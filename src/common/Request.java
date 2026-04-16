@@ -63,6 +63,10 @@ public class Request implements Serializable {
         return new Request(RequestType.GET_PLAYER_STATS, null, null, null, playerId, null, null, null, null, null, null, null);
     }
 
+    public static Request getAllGames() {
+        return new Request(RequestType.GET_ALL_GAMES, null, null, null, null, null, null, null, null, null, null, null);
+    }
+
     public static Request searchGames(String playerId, String providerName, String riskLevel, String betCategory, Integer minStars) {
         return new Request(RequestType.SEARCH_GAMES, null, null, providerName, playerId, riskLevel, betCategory, null, null, null, minStars, null);
     }
@@ -81,10 +85,6 @@ public class Request implements Serializable {
 
     public static Request playerMapPayload(String playerId, Map<String, Double> partialTotals) {
         return new Request(RequestType.MAP_PLAYER_STATS, null, null, null, playerId, null, null, null, null, null, null, partialTotals);
-    }
-
-    public static Request healthCheck() {
-        return new Request(RequestType.HEALTH_CHECK, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     public RequestType getType() { return type; }
