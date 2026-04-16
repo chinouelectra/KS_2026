@@ -38,10 +38,6 @@ public class ReducerRequestHandler implements Runnable {
             return new Response(false, "Invalid reducer request");
         }
 
-        if (request.getType() == RequestType.HEALTH_CHECK) {
-            return new Response(true, "REDUCER_OK");
-        }
-
         if (request.getType() != RequestType.MAP_PROVIDER_STATS && request.getType() != RequestType.MAP_PLAYER_STATS) {
             return new Response(false, "Reducer only supports map outputs");
         }

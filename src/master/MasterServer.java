@@ -47,8 +47,7 @@ public class MasterServer {
         }
 
         if (workers.isEmpty()) {
-            workers.add(new WorkerInfo("localhost", 6001));
-            workers.add(new WorkerInfo("localhost", 6002));
+            workers.add(new WorkerInfo("localhost", 8081));
         }
         return workers;
     }

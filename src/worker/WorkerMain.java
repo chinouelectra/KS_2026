@@ -7,12 +7,12 @@ import java.net.Socket;
 public class WorkerMain {
 
     public static void main(String[] args) {
-        ServerSocket server = null;
         WorkerStorage storage = new WorkerStorage();
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : 8081;
 
-        try {
-            server = new ServerSocket(8081);
-            System.out.println("Worker server started at port 8081");
+        try (ServerSocket server = new ServerSocket(port)) {
+            System.out.println("Worker server started at port " + port);
+
 
             while (true) {
                 Socket client = server.accept();
@@ -24,14 +24,6 @@ public class WorkerMain {
 
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            try {
-                if (server != null && !server.isClosed()) {
-                    server.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
     }
 }
