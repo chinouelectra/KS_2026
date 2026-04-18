@@ -1,9 +1,13 @@
 package reducer;
 
+import common.map_reduce.Reducer;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class ReducerAccumulator {
+public class ReducerAccumulator implements Reducer<String, Double, Map<String, Double>> {
+
+    @Override
     public Map<String, Double> reduce(Map<String, Double> partialTotals) {
         Map<String, Double> reducedTotals = new LinkedHashMap<>();
         double grandTotal = 0.0;

@@ -1,8 +1,11 @@
 package worker;
 
-import java.util.HashMap;
+import common.map_reduce.Mapper;
 
-public class WorkerStorage {
+import java.util.HashMap;
+import java.util.Map;
+
+public class WorkerStorage implements Mapper<String, String, String, Double> {
 
     private HashMap<String, Game> games;
     private HashMap<String, Double> playerBalances;
@@ -12,6 +15,19 @@ public class WorkerStorage {
         games = new HashMap<>();
         playerBalances = new HashMap<>();
         playerProfitLoss = new HashMap<>();
+    }
+
+
+    @Override
+    public Map<String, Double> map(String key, String value) {
+        if (key == null || value == null) return new HashMap<>();
+        if (key.equals("provider")) {
+            return getProviderPartialTotals(value);
+        } else if (key.equals("player")) {
+            return getPlayerPartialTotals(value);
+        } else {
+            return new HashMap<>();
+        }
     }
 
     public synchronized String addGame(Game game) {
@@ -25,8 +41,18 @@ public class WorkerStorage {
             return "Game name is empty";
         }
 
-        if (games.containsKey(gameName)) {
-            return "Game already exists";
+        Game existingGame = games.get(gameName);
+        if (existingGame != null) {
+            if (existingGame.isActive()) {
+                return "Game already exists";
+            }
+
+            existingGame.setActive(true);
+            existingGame.setRiskLevel(game.getRiskLevel());
+            existingGame.setMinBet(game.getMinBet());
+            existingGame.setMaxBet(game.getMaxBet());
+            return "Game re-activated successfully";
+
         }
 
         games.put(gameName, game);
