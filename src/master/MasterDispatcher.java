@@ -1,9 +1,9 @@
 package master;
 
 import common.Request;
-import common.RequestType;
 import common.Response;
 import common.WorkerInfo;
+import common.map_reduce.Reducer;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -39,15 +39,12 @@ public class MasterDispatcher {
             case UPDATE_GAME_RISK -> updateRiskOnMasterAndWorker(request);
             case UPDATE_GAME_BET_LIMITS -> updateBetLimitsOnMasterAndWorker(request);
             case GET_PROVIDER_STATS -> reduceFromWorkers(
-                    Request.providerMapPayload(request.getProviderName(), Collections.emptyMap()),
-                    RequestType.MAP_PROVIDER_STATS
-            );
+                    Request.providerMapPayload(request.getProviderName(), Collections.emptyMap()));
             case GET_PLAYER_STATS -> reduceFromWorkers(
-                    Request.playerMapPayload(request.getPlayerId(), Collections.emptyMap()),
-                    RequestType.MAP_PLAYER_STATS
-            );
+                    Request.playerMapPayload(request.getPlayerId(), Collections.emptyMap()));
             case GET_ALL_GAMES -> casinoState.getAllAvailableGames();
-            case SEARCH_GAMES -> casinoState.search(request.getProviderName(), request.getRiskLevel(), request.getBetCategory(), request.getMinStars());
+            case SEARCH_GAMES ->
+                    casinoState.search(request.getProviderName(), request.getRiskLevel(), request.getBetCategory(), request.getMinStars());
             case PLACE_BET -> routeByGameName(request.getGameName(), request);
             case ADD_BALANCE -> broadcastToWorkers(request);
             default -> new Response(false, "Unsupported request type for master: " + request.getType());
@@ -95,7 +92,7 @@ public class MasterDispatcher {
         }
     }
 
-    private Response reduceFromWorkers(Request request, RequestType reduceType) {
+    private Response reduceFromWorkers(Request request) {
         List<Response> mapResponses = workerClient.broadcast(workerRegistry.getWorkers(), request);
         Map<String, Double> mergedPartials = new LinkedHashMap<>();
 
@@ -106,11 +103,11 @@ public class MasterDispatcher {
             accumulate(mergedPartials, mapResponse.getTotals());
         }
 
-        Request reducerRequest = reduceType == RequestType.MAP_PROVIDER_STATS
-                ? Request.providerMapPayload(request.getProviderName(), mergedPartials)
-                : Request.playerMapPayload(request.getPlayerId(), mergedPartials);
+        Reducer<String, Double, Map<String, Double>> reducer =
+                new reducer.ReducerAccumulator();
+        Map<String, Double> reducedTotals = reducer.reduce(mergedPartials);
+        return new Response(true, "Reduced totals", reducedTotals);
 
-        return reducerClient.reduce(reducerRequest);
     }
 
     private Response broadcastToWorkers(Request request) {
