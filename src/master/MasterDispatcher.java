@@ -14,6 +14,7 @@ public class MasterDispatcher {
     private final WorkerRegistry workerRegistry;
     private final WorkerClient workerClient;
     private final ReducerClient reducerClient;
+    private final RandomGeneratorClient randomGeneratorClient;
     private final CasinoState casinoState;
     private final String reducerHost;
     private final int reducerPort;
@@ -22,12 +23,14 @@ public class MasterDispatcher {
                             WorkerRegistry workerRegistry,
                             WorkerClient workerClient,
                             ReducerClient reducerClient,
+                            RandomGeneratorClient randomGeneratorClient,
                             String reducerHost,
                             int reducerPort) {
         this.hashRouter = hashRouter;
         this.workerRegistry = workerRegistry;
         this.workerClient = workerClient;
         this.reducerClient = reducerClient;
+        this.randomGeneratorClient = randomGeneratorClient;
         this.casinoState = new CasinoState();
         this.reducerHost = reducerHost;
         this.reducerPort = reducerPort;
@@ -59,6 +62,13 @@ public class MasterDispatcher {
         if (!masterResponse.isSuccess()) {
             return masterResponse;
         }
+
+        Response rngResponse = randomGeneratorClient.registerGame(request.getGameInfo());
+        if (!rngResponse.isSuccess()) {
+            casinoState.removeGame(request.getGameInfo().getGameName());
+            return rngResponse;
+        }
+
         return routeByGameName(request.getGameInfo().getGameName(), request);
     }
 

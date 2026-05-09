@@ -4,6 +4,7 @@ import common.GameInfo;
 import common.Request;
 import common.RequestType;
 import common.Response;
+import rng.RandomRequest;
 import rng.RandomResult;
 
 import java.io.IOException;
@@ -293,7 +294,7 @@ public class HandleThreadWorker extends Thread {
     }
 
     private double calculatePayout(Game game, double betAmount) {
-        int randomNumber = getVerifiedRandomNumber(game.getHashKey());
+        int randomNumber = getVerifiedRandomNumber(game.getGameName(), game.getHashKey());
         int mod100 = Math.floorMod(randomNumber, 100);
 
         if (mod100 == 0) {
@@ -310,7 +311,7 @@ public class HandleThreadWorker extends Thread {
         return betAmount * multiplier;
     }
 
-    private int getVerifiedRandomNumber(String secret) {
+    private int getVerifiedRandomNumber(String gameName, String secret) {
         Socket socket = null;
         ObjectOutputStream out = null;
         ObjectInputStream in = null;
@@ -323,8 +324,8 @@ public class HandleThreadWorker extends Thread {
 
             in = new ObjectInputStream(socket.getInputStream());
 
-            // Στέλνουμε το shared secret στο RNG server
-            out.writeObject(secret);
+            // Send shared secret to RNG server
+            out.writeObject(RandomRequest.nextRandom(gameName));
             out.flush();
 
             RandomResult result = (RandomResult) in.readObject();
