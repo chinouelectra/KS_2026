@@ -22,7 +22,9 @@ public class MasterServer {
         HashRouter hashRouter = new HashRouter(workerRegistry);
         WorkerClient workerClient = new WorkerClient();
         ReducerClient reducerClient = new ReducerClient(reducerHost, reducerPort);
-        MasterDispatcher dispatcher = new MasterDispatcher(hashRouter, workerRegistry, workerClient, reducerClient);
+        MasterDispatcher dispatcher = new MasterDispatcher(
+                hashRouter, workerRegistry, workerClient, reducerClient, reducerHost, reducerPort
+        );
 
         try (ServerSocket serverSocket = new ServerSocket(masterPort)) {
             System.out.println("Master started on port " + masterPort);

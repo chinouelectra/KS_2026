@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HandleThreadWorker extends Thread {
+    private static final int REDUCER_SEND_RETRIES = 5;
+    private static final long REDUCER_RETRY_DELAY_MILLIS = 150L;
 
     private final Socket client;
     private final WorkerStorage storage;
@@ -110,10 +112,10 @@ public class HandleThreadWorker extends Thread {
             case GET_PLAYER_STATS:
                 return handleGetPlayerStats(request.getPlayerId());
             case MAP_PROVIDER_STATS:
-                return handleMapProviderStats(request.getProviderName());
+                return handleMapProviderStats(request);
 
             case MAP_PLAYER_STATS:
-                return handleMapPlayerStats(request.getPlayerId());
+                return handleMapPlayerStats(request);
             default:
                 return new Response(false, "Unsupported request type: " + type);
         }
@@ -436,30 +438,80 @@ public class HandleThreadWorker extends Thread {
         );
     }
 
-    private Response handleMapProviderStats(String providerName) {
+    private Response handleMapProviderStats(Request request) {
+        String providerName = request.getProviderName();
         if (providerName == null || providerName.trim().isEmpty()) {
             return new Response(false, "Provider name is empty");
         }
 
-        return new Response(
-                true,
-                "Provider map output ready",
-                storage.getProviderPartialTotals(providerName)
+        return sendMapOutputToReducer(
+                request.getReducerHost(),
+                request.getReducerPort(),
+                Request.submitProviderMapResult(
+                        providerName,
+                        request.getJobId(),
+                        storage.getProviderPartialTotals(providerName)
+                ),
+                "Provider map output sent to reducer"
         );
-
-
     }
 
-    private Response handleMapPlayerStats(String playerId) {
+    private Response handleMapPlayerStats(Request request) {
+        String playerId = request.getPlayerId();
         if (playerId == null || playerId.trim().isEmpty()) {
             return new Response(false, "Player ID is empty");
         }
 
-        return new Response(
-                true,
-                "Player map output ready",
-                storage.getPlayerPartialTotals(playerId)
+        return sendMapOutputToReducer(
+                request.getReducerHost(),
+                request.getReducerPort(),
+                Request.submitPlayerMapResult(
+                        playerId,
+                        request.getJobId(),
+                        storage.getPlayerPartialTotals(playerId)
+                ),
+                "Player map output sent to reducer"
         );
+    }
+
+    private Response sendMapOutputToReducer(String reducerHost, Integer reducerPort, Request reducerRequest, String successMessage) {
+        if (reducerHost == null || reducerHost.trim().isEmpty() || reducerPort == null) {
+            return new Response(false, "Reducer destination is missing from map request");
+        }
+
+        for (int attempt = 1; attempt <= REDUCER_SEND_RETRIES; attempt++) {
+            try (Socket socket = new Socket(reducerHost, reducerPort);
+                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                 ObjectInputStream in = new ObjectInputStream(socket.getInputStream())) {
+
+                out.writeObject(reducerRequest);
+                out.flush();
+
+                Response reducerResponse = (Response) in.readObject();
+                if (reducerResponse.isSuccess()) {
+                    return new Response(true, successMessage);
+                }
+
+                boolean retryable = reducerResponse.getMessage() != null
+                        && reducerResponse.getMessage().contains("Reduce job not found");
+                if (!retryable || attempt == REDUCER_SEND_RETRIES) {
+                    return reducerResponse;
+                }
+            } catch (Exception e) {
+                if (attempt == REDUCER_SEND_RETRIES) {
+                    return new Response(false, "Failed to send map output to reducer: " + e.getMessage());
+                }
+            }
+
+            try {
+                Thread.sleep(REDUCER_RETRY_DELAY_MILLIS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return new Response(false, "Interrupted while retrying reducer send");
+            }
+        }
+
+        return new Response(false, "Failed to send map output to reducer");
     }
 
     private GameInfo convertToGameInfo(Game game) {

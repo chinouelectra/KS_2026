@@ -16,7 +16,7 @@ public class ReducerClient {
         this.reducerPort = reducerPort;
     }
 
-    public Response reduce(Request request) {
+    public Response send(Request request) {
         try (Socket socket = new Socket(reducerHost, reducerPort);
              ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
              ObjectInputStream in = new ObjectInputStream(socket.getInputStream())) {

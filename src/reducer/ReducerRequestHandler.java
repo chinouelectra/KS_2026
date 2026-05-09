@@ -7,15 +7,14 @@ import common.Response;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.Map;
 
 public class ReducerRequestHandler implements Runnable {
     private final Socket socket;
-    private final ReducerAccumulator accumulator;
+    private final ReducerJobCoordinator coordinator;
 
-    public ReducerRequestHandler(Socket socket, ReducerAccumulator accumulator) {
+    public ReducerRequestHandler(Socket socket, ReducerJobCoordinator coordinator) {
         this.socket = socket;
-        this.accumulator = accumulator;
+        this.coordinator = coordinator;
     }
 
     @Override
@@ -38,15 +37,16 @@ public class ReducerRequestHandler implements Runnable {
             return new Response(false, "Invalid reducer request");
         }
 
-        if (request.getType() != RequestType.MAP_PROVIDER_STATS && request.getType() != RequestType.MAP_PLAYER_STATS) {
-            return new Response(false, "Reducer only supports map outputs");
+        if (request.getType() == RequestType.INIT_PROVIDER_REDUCE_JOB
+                || request.getType() == RequestType.INIT_PLAYER_REDUCE_JOB) {
+            return coordinator.initAndWait(request, 15000L);
         }
 
-        Map<String, Double> totals = accumulator.reduce(request.getPartialTotals());
-        String subject = request.getType() == RequestType.MAP_PROVIDER_STATS
-                ? request.getProviderName()
-                : request.getPlayerId();
+        if (request.getType() != RequestType.SUBMIT_PROVIDER_MAP_RESULT
+                && request.getType() != RequestType.SUBMIT_PLAYER_MAP_RESULT) {
+            return new Response(false, "Reducer only supports reduce-job init and worker map submissions");
+        }
 
-        return new Response(true, "Reduced totals for " + subject, totals);
+        return coordinator.submitMapResult(request);
     }
 }
