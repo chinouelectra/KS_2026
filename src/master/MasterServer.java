@@ -22,7 +22,10 @@ public class MasterServer {
         HashRouter hashRouter = new HashRouter(workerRegistry);
         WorkerClient workerClient = new WorkerClient();
         ReducerClient reducerClient = new ReducerClient(reducerHost, reducerPort);
-        MasterDispatcher dispatcher = new MasterDispatcher(hashRouter, workerRegistry, workerClient, reducerClient);
+        RandomGeneratorClient randomGeneratorClient = new RandomGeneratorClient("localhost", 9090);
+        MasterDispatcher dispatcher = new MasterDispatcher(
+                hashRouter, workerRegistry, workerClient, reducerClient, randomGeneratorClient, reducerHost, reducerPort
+        );
 
         try (ServerSocket serverSocket = new ServerSocket(masterPort)) {
             System.out.println("Master started on port " + masterPort);

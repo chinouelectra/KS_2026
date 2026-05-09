@@ -11,12 +11,13 @@ public class RandomGeneratorServer {
 
         try {
             int port = 9090;
+            RandomQueueRegistry registry = new RandomQueueRegistry();
             server = new ServerSocket(port);
             System.out.println("RandomGeneratorServer started on port " + port);
 
             while (true) {
                 Socket client = server.accept();
-                RandomRequestHandler handler = new RandomRequestHandler(client);
+                RandomRequestHandler handler = new RandomRequestHandler(client, registry);
                 handler.start();
             }
 
