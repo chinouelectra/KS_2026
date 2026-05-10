@@ -8,9 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MasterServer {
-    private static final int DEFAULT_MASTER_PORT = 5000;
+    private static final int DEFAULT_MASTER_PORT = 5001;
     private static final String DEFAULT_REDUCER_HOST = "localhost";
-    private static final int DEFAULT_REDUCER_PORT = 7000;
+    private static final int DEFAULT_REDUCER_PORT = 7001;
 
     public static void main(String[] args) throws Exception {
         int masterPort = args.length > 0 ? Integer.parseInt(args[0]) : DEFAULT_MASTER_PORT;

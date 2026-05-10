@@ -53,6 +53,7 @@ public class MasterDispatcher {
                     casinoState.search(request.getProviderName(), request.getRiskLevel(), request.getBetCategory(), request.getMinStars());
             case PLACE_BET -> routeByGameName(request.getGameName(), request);
             case ADD_BALANCE -> broadcastToWorkers(request);
+            case HEALTH_CHECK -> new Response(true, "Master is alive");
             default -> new Response(false, "Unsupported request type for master: " + request.getType());
         };
     }

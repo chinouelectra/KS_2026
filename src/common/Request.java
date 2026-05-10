@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class Request implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final RequestType type;
     private final GameInfo gameInfo;
     private final String gameName;

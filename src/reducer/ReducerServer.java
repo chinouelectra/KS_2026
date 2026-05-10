@@ -5,7 +5,7 @@ import java.net.Socket;
 
 public class ReducerServer {
     public static void main(String[] args) throws Exception {
-        int port = args.length > 0 ? Integer.parseInt(args[0]) : 7000;
+        int port = args.length > 0 ? Integer.parseInt(args[0]) : 7001;
         ReducerAccumulator accumulator = new ReducerAccumulator();
         ReducerJobCoordinator coordinator = new ReducerJobCoordinator(accumulator);
 

@@ -3,6 +3,7 @@ package common;
 import java.io.Serializable;
 
 public class GameInfo implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final String gameName;
     private final String providerName;
     private final int stars;

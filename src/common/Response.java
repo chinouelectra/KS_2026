@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 public class Response implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final boolean success;
     private final String message;
     private final Map<String, Double> totals;
